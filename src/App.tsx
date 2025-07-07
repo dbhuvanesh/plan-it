@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -9,12 +9,15 @@ import {
   TextField,
   Box,
 } from "@radix-ui/themes";
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.min.css"; // required styles
 import "@radix-ui/themes/styles.css";
 
 type Task = {
   id: number;
   text: string;
   completed: boolean;
+  dueDate?: string;
 };
 
 const STORAGE_KEY = "radix-todo-tasks";
@@ -33,6 +36,23 @@ export default function TodoApp() {
   });
 
   const [input, setInput] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Setup flatpickr
+  useEffect(() => {
+    if (dateInputRef.current) {
+      flatpickr(dateInputRef.current, {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        onChange: ([selected]) => {
+          if (selected) {
+            setDueDate(selected.toISOString());
+          }
+        },
+      });
+    }
+  }, []);
 
   // Persist tasks
   useEffect(() => {
@@ -47,9 +67,12 @@ export default function TodoApp() {
       id: Date.now(),
       text: input.trim(),
       completed: false,
+      dueDate,
     };
     setTasks([...tasks, newTask]);
     setInput("");
+    setDueDate("");
+    if (dateInputRef.current) dateInputRef.current.value = ""; // reset picker UI
   }
 
   // Toggle task
@@ -68,16 +91,28 @@ export default function TodoApp() {
 
   return (
     <Flex direction="column" align="center" gap="4" p="4" width="100vw" height="100vh">
-      {/* Task Input */}
       <form onSubmit={handleAddTask} style={{ width: "100%", maxWidth: 400 }}>
-        <Flex gap="2">
-          <TextField.Root
-            placeholder="Add a new task..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={{ flex: 1 }}
+        <Flex direction="column" gap="2">
+          <Flex gap="2">
+            <TextField.Root
+              placeholder="Add a new task..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <Button type="submit">Add</Button>
+          </Flex>
+
+          <input
+            ref={dateInputRef}
+            placeholder="Pick due date"
+            style={{
+              padding: "8px",
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              width: "100%",
+            }}
           />
-          <Button type="submit">Add</Button>
         </Flex>
       </form>
 
@@ -85,27 +120,34 @@ export default function TodoApp() {
       <Box style={{ width: "100%", maxWidth: 400 }}>
         <Flex direction="column" gap="3">
           {tasks.map((task) => (
-            <Flex key={task.id} align="center" gap="3">
-              <Checkbox
-                checked={task.completed}
-                onCheckedChange={() => toggleTask(task.id)}
-              />
-              <Text
-                style={{
-                  textDecoration: task.completed ? "line-through" : "none",
-                  flex: 1,
-                }}
-              >
-                {task.text}
-              </Text>
-              <Button
-                variant="ghost"
-                color="red"
-                onClick={() => deleteTask(task.id)}
-                style={{ padding: 0, minWidth: 24 }}
-              >
-                ×
-              </Button>
+            <Flex key={task.id} direction="column" gap="1" style={{ borderBottom: "1px solid #eee", paddingBottom: 8 }}>
+              <Flex align="center" gap="3">
+                <Checkbox
+                  checked={task.completed}
+                  onCheckedChange={() => toggleTask(task.id)}
+                />
+                <Text
+                  style={{
+                    textDecoration: task.completed ? "line-through" : "none",
+                    flex: 1,
+                  }}
+                >
+                  {task.text}
+                </Text>
+                <Button
+                  variant="ghost"
+                  color="red"
+                  onClick={() => deleteTask(task.id)}
+                  style={{ padding: 0, minWidth: 24 }}
+                >
+                  ×
+                </Button>
+              </Flex>
+              {task.dueDate && (
+                <Text size="1" color="gray" ml="5">
+                  Due: {new Date(task.dueDate).toLocaleString()}
+                </Text>
+              )}
             </Flex>
           ))}
         </Flex>
